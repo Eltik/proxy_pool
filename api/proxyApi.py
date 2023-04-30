@@ -25,6 +25,8 @@ from helper.proxy import Proxy
 from handler.proxyHandler import ProxyHandler
 from handler.configHandler import ConfigHandler
 
+import requests
+
 app = Flask(__name__)
 conf = ConfigHandler()
 proxy_handler = ProxyHandler()
@@ -101,6 +103,27 @@ def getCount():
         for source in proxy.source.split('/'):
             source_dict[source] = source_dict.get(source, 0) + 1
     return {"http_type": http_type_dict, "source": source_dict, "count": len(proxies)}
+
+@app.route('/proxy/', methods=['GET'])
+def proxyRequest():
+    url = request.args.get('url')
+    https = True
+    proxy = proxy_handler.get(https)
+    
+    if proxy:
+        proxy = proxy.to_dict
+        proxy = proxy['proxy']
+        proxy = proxy.split(':')
+        proxy = {'http': proxy[0] + ':' + proxy[1], 'https': proxy[0] + ':' + proxy[1]}
+        print(proxy)
+        try:
+            r = requests.get(url, proxies={"http": "http://{}".format(proxy)})
+            if r.status_code == 200:
+                return {'proxy': proxy, 'data': r.text}
+            else:
+                return {'proxy': proxy, 'status': r.status_code, 'data': r.text}
+        except:
+            return {'proxy': proxy, 'status': 'timeout'}
 
 
 def runFlask():
